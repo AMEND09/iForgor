@@ -9,7 +9,6 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
-  Keyboard,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { X, Calendar } from 'lucide-react-native';
@@ -47,26 +46,6 @@ export const CreateCardModal: React.FC<CreateCardModalProps> = ({
   const [priority, setPriority] = useState<'low' | 'medium' | 'high'>('medium');
   const [dueDate, setDueDate] = useState('');
   const insets = useSafeAreaInsets();
-  const [keyboardHeight, setKeyboardHeight] = useState(0);
-
-  useEffect(() => {
-    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
-    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
-
-    const onShow = (e: any) => {
-      const h = e?.endCoordinates?.height ?? 0;
-      setKeyboardHeight(h);
-    };
-    const onHide = () => setKeyboardHeight(0);
-
-    const showSub = Keyboard.addListener(showEvent, onShow);
-    const hideSub = Keyboard.addListener(hideEvent, onHide);
-
-    return () => {
-      showSub.remove();
-      hideSub.remove();
-    };
-  }, []);
 
   const handleCreate = () => {
     if (!title.trim()) return;
@@ -158,7 +137,7 @@ export const CreateCardModal: React.FC<CreateCardModalProps> = ({
   <ScrollView
             style={styles.content}
             showsVerticalScrollIndicator={false}
-            contentContainerStyle={{ flexGrow: 1, paddingBottom: 160 + keyboardHeight + insets.bottom }}
+              contentContainerStyle={{ flexGrow: 1, paddingBottom: 160 + insets.bottom }}
           >
           <View style={styles.section}>
             <Text style={styles.label}>Task Name</Text>
@@ -243,7 +222,7 @@ export const CreateCardModal: React.FC<CreateCardModalProps> = ({
           </View>
         </ScrollView>
 
-  <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, Platform.OS === 'ios' ? 20 : 12), bottom: keyboardHeight + insets.bottom }]}>
+  <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, Platform.OS === 'ios' ? 20 : 12) }]}>
           <TouchableOpacity style={styles.cancelButton} onPress={handleClose}>
             <Text style={styles.cancelButtonText}>Cancel</Text>
           </TouchableOpacity>
@@ -275,7 +254,7 @@ export const CreateCardModal: React.FC<CreateCardModalProps> = ({
               <Text style={styles.createButtonText}>Create Task</Text>
             </TouchableOpacity>
           )}
-        </View>
+  </View>
         </SafeAreaView>
       </KeyboardAvoidingView>
     </Modal>
