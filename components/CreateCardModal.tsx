@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,7 +7,11 @@ import {
   TextInput,
   TouchableOpacity,
   ScrollView,
+  KeyboardAvoidingView,
+  Platform,
+  Keyboard,
 } from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { X, Calendar } from 'lucide-react-native';
 import { KanbanCard } from '@/types';
 import { colors } from '@/utils/colors';
@@ -42,6 +46,27 @@ export const CreateCardModal: React.FC<CreateCardModalProps> = ({
   const [description, setDescription] = useState('');
   const [priority, setPriority] = useState<'low' | 'medium' | 'high'>('medium');
   const [dueDate, setDueDate] = useState('');
+  const insets = useSafeAreaInsets();
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+
+  useEffect(() => {
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+
+    const onShow = (e: any) => {
+      const h = e?.endCoordinates?.height ?? 0;
+      setKeyboardHeight(h);
+    };
+    const onHide = () => setKeyboardHeight(0);
+
+    const showSub = Keyboard.addListener(showEvent, onShow);
+    const hideSub = Keyboard.addListener(hideEvent, onHide);
+
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
 
   const handleCreate = () => {
     if (!title.trim()) return;
@@ -114,10 +139,15 @@ export const CreateCardModal: React.FC<CreateCardModalProps> = ({
     <Modal
       visible={visible}
       animationType="slide"
-      presentationStyle="pageSheet"
+      presentationStyle="fullScreen"
       onRequestClose={handleClose}
     >
-      <View style={styles.container}>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? insets.top + 10 : 0}
+      >
+        <SafeAreaView style={styles.container} edges={['bottom', 'left', 'right', 'top']}>
         <View style={styles.header}>
           <Text style={styles.headerTitle}>Create Task</Text>
           <TouchableOpacity style={styles.closeButton} onPress={handleClose}>
@@ -125,7 +155,11 @@ export const CreateCardModal: React.FC<CreateCardModalProps> = ({
           </TouchableOpacity>
         </View>
 
-        <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+  <ScrollView
+            style={styles.content}
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={{ flexGrow: 1, paddingBottom: 160 + keyboardHeight + insets.bottom }}
+          >
           <View style={styles.section}>
             <Text style={styles.label}>Task Name</Text>
             <TextInput
@@ -209,7 +243,7 @@ export const CreateCardModal: React.FC<CreateCardModalProps> = ({
           </View>
         </ScrollView>
 
-        <View style={styles.footer}>
+  <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, Platform.OS === 'ios' ? 20 : 12), bottom: keyboardHeight + insets.bottom }]}>
           <TouchableOpacity style={styles.cancelButton} onPress={handleClose}>
             <Text style={styles.cancelButtonText}>Cancel</Text>
           </TouchableOpacity>
@@ -242,7 +276,8 @@ export const CreateCardModal: React.FC<CreateCardModalProps> = ({
             </TouchableOpacity>
           )}
         </View>
-      </View>
+        </SafeAreaView>
+      </KeyboardAvoidingView>
     </Modal>
   );
 };
@@ -367,6 +402,12 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     borderTopWidth: 1,
     borderTopColor: colors.neutral[200],
+    backgroundColor: '#FFFFFF',
+    // Position footer above keyboard / always at bottom of modal
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
   },
   cancelButton: {
     flex: 1,
