@@ -1,7 +1,7 @@
 {
   "name": "iforgor",
   "main": "expo-router/entry",
-  "homepage": "https://amend09.github.io/iForgor",
+  "homepage": "/",
   "version": "1.0.0",
   "private": true,
   "scripts": {
