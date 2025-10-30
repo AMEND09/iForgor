@@ -10,13 +10,12 @@ import DraggableFlatList, {
   ScaleDecorator,
   RenderItemParams,
 } from 'react-native-draggable-flatlist';
-import { Plus } from 'lucide-react-native';
 import { KanbanColumn as KanbanColumnType, KanbanCard } from '@/types';
 import { DraggableTaskCard } from '@/components/DraggableTaskCard';
 import { useCardDrag } from '@/components/CardDragProvider';
 import { colors } from '@/utils/colors';
 
-import { MoreHorizontal, Edit, Trash2 } from 'lucide-react-native';
+import { Edit, Trash2 } from 'lucide-react-native';
 
 interface DraggableKanbanColumnProps {
   column: KanbanColumnType;
@@ -43,46 +42,50 @@ export const DraggableKanbanColumn: React.FC<DraggableKanbanColumnProps> = ({
   onEditCard,
   containerStyle,
 }) => {
-  // Try to use card drag context, but don't fail if not available
-  let isDragging = false;
-  let draggedFromColumn = null;
-  let dropCard: (toColumnId: string) => void = () => {};
-  let setHoverColumn: (columnId: string | null) => void = () => {};
-  
-  try {
-    const dragContext = useCardDrag();
-    isDragging = dragContext.isDragging;
-    draggedFromColumn = dragContext.draggedFromColumn;
-    dropCard = dragContext.dropCard;
-  setHoverColumn = dragContext.setHoverColumn;
-  } catch (e) {
-    // CardDragProvider not available, use fallback
-  }
-  
-  const isDropTarget = isDragging && draggedFromColumn !== column.id;
-  
-  const handleDrop = () => {
-    if (isDropTarget) {
-      dropCard(column.id);
-    }
-  };
-  const renderCard = ({ item, drag, isActive }: RenderItemParams<KanbanCard>) => {
-    return (
-      <ScaleDecorator>
-        <TouchableOpacity
-          onLongPress={drag}
-          disabled={isActive}
-          style={{ opacity: isActive ? 0.8 : 1 }}
-        >
-          <DraggableTaskCard 
-            card={item} 
-            isDragging={isActive}
-            onEdit={(card) => onEditCard && onEditCard(card.id, column.id)}
-          />
-        </TouchableOpacity>
-      </ScaleDecorator>
-    );
-  };
+  const {
+    isDragging,
+    draggedFromColumn,
+    hoverColumnId,
+    registerColumn,
+    unregisterColumn,
+  } = useCardDrag();
+
+  const containerRef = React.useRef<View>(null);
+
+  const measureColumn = React.useCallback(() => {
+    const node = containerRef.current;
+    if (!node) return;
+    node.measureInWindow((x, y, w, h) => {
+      registerColumn(column.id, { x, y, width: w, height: h });
+    });
+  }, [column.id, registerColumn]);
+
+  React.useEffect(() => {
+    measureColumn();
+  }, [measureColumn, column.cards.length]);
+
+  React.useEffect(() => {
+    return () => {
+      unregisterColumn(column.id);
+    };
+  }, [column.id, unregisterColumn]);
+
+  const isDropTarget = isDragging && hoverColumnId === column.id && draggedFromColumn !== column.id;
+
+  const handleLayout = React.useCallback(() => {
+    measureColumn();
+  }, [measureColumn]);
+
+  const renderCard = ({ item, drag, isActive }: RenderItemParams<KanbanCard>) => (
+    <ScaleDecorator>
+      <DraggableTaskCard
+        card={item}
+        isDragging={isActive}
+        onEdit={(card) => onEditCard && onEditCard(card.id, column.id)}
+        onReorderDrag={drag}
+      />
+    </ScaleDecorator>
+  );
 
   const handleDragEnd = ({ data }: { data: KanbanCard[] }) => {
     onReorderCards(data);
@@ -90,19 +93,14 @@ export const DraggableKanbanColumn: React.FC<DraggableKanbanColumnProps> = ({
 
   return (
     <View
+      ref={containerRef}
+      onLayout={handleLayout}
       style={[
-      styles.container,
+        styles.container,
         { width: columnWidth },
         containerStyle,
         isDropTarget && styles.dropTarget,
       ]}
-      // Become responder while dragging, to catch release inside this column
-      onStartShouldSetResponder={() => isDragging}
-      onMoveShouldSetResponder={() => isDragging}
-      onResponderGrant={() => setHoverColumn && setHoverColumn(column.id)}
-      onResponderRelease={() => { setHoverColumn && setHoverColumn(null); handleDrop(); }}
-      onResponderTerminate={() => setHoverColumn && setHoverColumn(null)}
-      onResponderTerminationRequest={() => false}
     >
       <View style={styles.header}>
         <View style={styles.headerLeftRow}>
@@ -126,8 +124,6 @@ export const DraggableKanbanColumn: React.FC<DraggableKanbanColumnProps> = ({
         </View>
       </View>
 
-  {/* hover indicator removed; border/colors show target */}
-
       <View style={styles.cardsList}>
         <DraggableFlatList
           data={column.cards}
@@ -135,13 +131,13 @@ export const DraggableKanbanColumn: React.FC<DraggableKanbanColumnProps> = ({
           keyExtractor={(item) => item.id}
           renderItem={renderCard}
           contentContainerStyle={styles.cardsContent}
-          showsVerticalScrollIndicator={true}
-          nestedScrollEnabled={true}
+          showsVerticalScrollIndicator
+          nestedScrollEnabled
           style={{ maxHeight: COLUMN_MAX_HEIGHT }}
           keyboardShouldPersistTaps="handled"
         />
       </View>
-  </View>
+    </View>
   );
 };
 
@@ -149,8 +145,7 @@ const styles = StyleSheet.create({
   container: {
     backgroundColor: colors.neutral[100],
     borderRadius: 12,
-  // leave maxHeight controlled inline
-  paddingBottom: 16,
+    paddingBottom: 16,
   },
   header: {
     flexDirection: 'row',

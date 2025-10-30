@@ -13,6 +13,7 @@ import { CalendarEventCard } from '@/components/CalendarEventCard';
 import { CalendarGrid } from '@/components/CalendarGrid';
 import { getCalendarEvents } from '@/utils/data';
 import { colors } from '@/utils/colors';
+import { parseDateValue, toDateKey } from '@/utils/date';
 
 export default function CalendarScreen() {
   const { boards, loading } = useBoards();
@@ -35,11 +36,13 @@ export default function CalendarScreen() {
     const groups: { [date: string]: typeof events } = {};
     
     events.forEach(event => {
-      const date = new Date(event.date).toDateString();
-      if (!groups[date]) {
-        groups[date] = [];
+      const parsed = parseDateValue(event.date);
+      if (!parsed) return;
+      const key = toDateKey(parsed);
+      if (!groups[key]) {
+        groups[key] = [];
       }
-      groups[date].push(event);
+      groups[key].push(event);
     });
     
     return groups;
@@ -124,14 +127,24 @@ export default function CalendarScreen() {
             onDateChange={setCurrentDate}
           />
         ) : (
-          Object.entries(groupedEvents).map(([date, dayEvents]) => (
-            <View key={date} style={styles.daySection}>
-              <Text style={styles.dateHeader}>{date}</Text>
-              {dayEvents.map(event => (
-                <CalendarEventCard key={event.id} event={event} />
-              ))}
-            </View>
-          ))
+          Object.entries(groupedEvents).map(([dateKey, dayEvents]) => {
+            const parsed = parseDateValue(dateKey);
+            const label = parsed
+              ? parsed.toLocaleDateString(undefined, {
+                  weekday: 'short',
+                  month: 'long',
+                  day: 'numeric',
+                })
+              : dateKey;
+            return (
+              <View key={dateKey} style={styles.daySection}>
+                <Text style={styles.dateHeader}>{label}</Text>
+                {dayEvents.map(event => (
+                  <CalendarEventCard key={event.id} event={event} />
+                ))}
+              </View>
+            );
+          })
         )}
       </ScrollView>
     </SafeAreaView>

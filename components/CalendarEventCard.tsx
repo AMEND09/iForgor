@@ -8,6 +8,7 @@ import {
 import { Clock, CircleAlert as AlertCircle } from 'lucide-react-native';
 import { CalendarEvent } from '@/types';
 import { colors } from '@/utils/colors';
+import { differenceInDays, parseDateValue } from '@/utils/date';
 
 interface CalendarEventCardProps {
   event: CalendarEvent;
@@ -24,11 +25,11 @@ export const CalendarEventCard: React.FC<CalendarEventCardProps> = ({ event }) =
   };
 
   const formatTime = (dateString: string) => {
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffTime = date.getTime() - now.getTime();
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    
+    const date = parseDateValue(dateString);
+    if (!date) return '';
+
+    const diffDays = differenceInDays(date, new Date());
+
     if (diffDays < 0) return 'Overdue';
     if (diffDays === 0) return 'Today';
     if (diffDays === 1) return 'Tomorrow';
@@ -36,7 +37,8 @@ export const CalendarEventCard: React.FC<CalendarEventCardProps> = ({ event }) =
     return `${diffDays} days`;
   };
 
-  const isOverdue = new Date(event.date) < new Date();
+  const eventDate = parseDateValue(event.date);
+  const isOverdue = !!eventDate && differenceInDays(eventDate, new Date()) < 0;
 
   return (
     <TouchableOpacity style={styles.container}>

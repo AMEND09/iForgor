@@ -77,9 +77,12 @@ export const useBoards = () => {
       if (board.id !== boardId) return board;
       return {
         ...board,
-        columns: board.columns.map(col =>
-          col.id === column.id ? { ...col, ...column, cards: column.cards.map(card => ({ ...card })) } : col
-        ),
+        columns: board.columns.map(col => {
+          if (col.id !== column.id) return col;
+          // If the incoming column payload doesn't include cards (e.g. a rename), keep existing cards
+          const newCards = column.cards ? column.cards.map(card => ({ ...card })) : col.cards.map(card => ({ ...card }));
+          return { ...col, ...column, cards: newCards };
+        }),
       };
     }));
   };

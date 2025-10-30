@@ -14,7 +14,8 @@ import { X, Plus, Edit, Trash2 } from 'lucide-react-native';
 import { KanbanBoard, KanbanCard, KanbanColumn } from '@/types';
 import { DraggableKanbanColumn } from '@/components/DraggableKanbanColumn';
 import { CreateCardModal } from '@/components/CreateCardModal';
-import { CardDragProvider } from '@/components/CardDragProvider';
+import { CardDragProvider, useCardDrag } from '@/components/CardDragProvider';
+import { TaskCard } from '@/components/TaskCard';
 import { colors } from '@/utils/colors';
 
 interface BoardDetailModalProps {
@@ -33,6 +34,28 @@ interface BoardDetailModalProps {
 }
 
 const { width } = Dimensions.get('window');
+
+const DragPreview: React.FC = () => {
+  const { draggedCard, dragPosition, dragOffset, dragCardSize, isDragging } = useCardDrag();
+
+  if (!isDragging || !draggedCard || !dragPosition) {
+    return null;
+  }
+
+  const width = dragCardSize?.width ?? 260;
+  const height = dragCardSize?.height ?? 120;
+  const offsetX = dragOffset?.x ?? width / 2;
+  const offsetY = dragOffset?.y ?? height / 2;
+
+  const left = dragPosition.x - offsetX;
+  const top = dragPosition.y - offsetY;
+
+  return (
+    <View pointerEvents="none" style={[styles.dragPreview, { left, top, width }]}>
+      <TaskCard card={draggedCard} />
+    </View>
+  );
+};
 
 export const BoardDetailModal: React.FC<BoardDetailModalProps> = ({
   board,
@@ -188,27 +211,30 @@ export const BoardDetailModal: React.FC<BoardDetailModalProps> = ({
           </View>
         </View>
 
-  <CardDragProvider onMoveCard={handleMoveCard}>
-          <ScrollView
-            horizontal
-            style={styles.boardContainer}
-            contentContainerStyle={[styles.boardContent, { alignItems: 'flex-start' }]}
-            showsHorizontalScrollIndicator={false}
-          >
-            {activeBoard.columns.map((column, idx) => (
-              <DraggableKanbanColumn
-                key={column.id}
-                column={column}
-                onMoveCard={handleMoveCard}
-                onAddCard={() => openCreateCard(column.id)}
-                onReorderCards={(cards: KanbanCard[]) => onReorderColumnCards(activeBoard.id, column.id, cards)}
-                onRenameColumn={handleRenameColumn}
-                onDeleteColumn={handleDeleteColumn}
-                onEditCard={openEditCard}
-                containerStyle={{ width: colWidthPx, marginRight: idx === activeBoard.columns.length - 1 ? 16 : GAP }}
-              />
-            ))}
-          </ScrollView>
+        <CardDragProvider onMoveCard={handleMoveCard}>
+          <>
+            <ScrollView
+              horizontal
+              style={styles.boardContainer}
+              contentContainerStyle={[styles.boardContent, { alignItems: 'flex-start' }]}
+              showsHorizontalScrollIndicator={false}
+            >
+              {activeBoard.columns.map((column, idx) => (
+                <DraggableKanbanColumn
+                  key={column.id}
+                  column={column}
+                  onMoveCard={handleMoveCard}
+                  onAddCard={() => openCreateCard(column.id)}
+                  onReorderCards={(cards: KanbanCard[]) => onReorderColumnCards(activeBoard.id, column.id, cards)}
+                  onRenameColumn={handleRenameColumn}
+                  onDeleteColumn={handleDeleteColumn}
+                  onEditCard={openEditCard}
+                  containerStyle={{ width: colWidthPx, marginRight: idx === activeBoard.columns.length - 1 ? 16 : GAP }}
+                />
+              ))}
+            </ScrollView>
+            <DragPreview />
+          </>
         </CardDragProvider>
 
         {/* Floating add-card button: always starts in the far-left column */}
@@ -419,5 +445,15 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,
     shadowRadius: 8,
+  },
+  dragPreview: {
+    position: 'absolute',
+    pointerEvents: 'none',
+    zIndex: 1000,
+    elevation: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.2,
+    shadowRadius: 12,
   },
 });

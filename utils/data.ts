@@ -1,5 +1,12 @@
 import { KanbanBoard, KanbanColumn, KanbanCard, CalendarEvent } from '@/types';
 import { colors, boardColors } from './colors';
+import { normalizeDateString, parseDateValue, toDateKey } from '@/utils/date';
+
+const createFutureDate = (daysAhead: number) => {
+  const date = new Date();
+  date.setDate(date.getDate() + daysAhead);
+  return toDateKey(date);
+};
 
 export const createSampleBoard = (id: string, title: string, colorIndex: number): KanbanBoard => {
   const boardColor = boardColors[colorIndex % boardColors.length];
@@ -25,7 +32,7 @@ export const createSampleBoard = (id: string, title: string, colorIndex: number)
             columnId: `${id}-col-1`,
             boardId: id,
             createdAt: new Date().toISOString(),
-            dueDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(),
+            dueDate: createFutureDate(3),
           },
           {
             id: `${id}-card-2`,
@@ -52,7 +59,7 @@ export const createSampleBoard = (id: string, title: string, colorIndex: number)
             columnId: `${id}-col-2`,
             boardId: id,
             createdAt: new Date().toISOString(),
-            dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+            dueDate: createFutureDate(7),
           },
         ],
       },
@@ -92,11 +99,12 @@ export const getCalendarEvents = (boards: KanbanBoard[]): CalendarEvent[] => {
   boards.forEach(board => {
     board.columns.forEach(column => {
       column.cards.forEach(card => {
-        if (card.dueDate) {
+        const normalizedDueDate = normalizeDateString(card.dueDate);
+        if (normalizedDueDate) {
           events.push({
             id: `event-${card.id}`,
             title: card.title,
-            date: card.dueDate,
+            date: normalizedDueDate,
             boardTitle: board.title,
             cardId: card.id,
             priority: card.priority,
@@ -106,5 +114,10 @@ export const getCalendarEvents = (boards: KanbanBoard[]): CalendarEvent[] => {
     });
   });
   
-  return events.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  return events.sort((a, b) => {
+    const dateA = parseDateValue(a.date);
+    const dateB = parseDateValue(b.date);
+    if (!dateA || !dateB) return 0;
+    return dateA.getTime() - dateB.getTime();
+  });
 };

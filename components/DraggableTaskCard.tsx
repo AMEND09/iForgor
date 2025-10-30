@@ -4,18 +4,22 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  Animated,
+  PanResponder,
+  GestureResponderEvent,
+  PanResponderGestureState,
 } from 'react-native';
 import { Calendar, CircleAlert as AlertCircle } from 'lucide-react-native';
 import { KanbanCard } from '@/types';
 import { useCardDrag } from '@/components/CardDragProvider';
 import { colors } from '@/utils/colors';
+import { differenceInDays, parseDateValue } from '@/utils/date';
 
 interface DraggableTaskCardProps {
   card: KanbanCard;
   isDragging?: boolean;
   onPress?: () => void;
   onEdit?: (card: KanbanCard) => void;
+  onReorderDrag?: () => void;
 }
 
 export const DraggableTaskCard: React.FC<DraggableTaskCardProps> = ({ 
@@ -23,10 +27,26 @@ export const DraggableTaskCard: React.FC<DraggableTaskCardProps> = ({
   isDragging = false,
   onPress,
   onEdit,
+  onReorderDrag,
 }) => {
   const lastTap = React.useRef<number | null>(null);
   const singleTapTimeout = React.useRef<any>(null);
   const DOUBLE_TAP_DELAY = 300; // ms
+  const cardLayout = React.useRef({ width: 0, height: 0 });
+  const dragStartedRef = React.useRef(false);
+
+  const {
+    startDrag,
+    endDrag,
+    dropCard,
+    updateDragPosition,
+    draggedCard,
+    isDragging: globalDragging,
+  } = useCardDrag();
+
+  const isCurrentDrag = React.useMemo(() => {
+    return globalDragging && draggedCard?.id === card.id;
+  }, [globalDragging, draggedCard, card.id]);
 
   React.useEffect(() => {
     return () => {
@@ -37,6 +57,10 @@ export const DraggableTaskCard: React.FC<DraggableTaskCardProps> = ({
   }, []);
 
   const handlePress = () => {
+    if (dragStartedRef.current) {
+      dragStartedRef.current = false;
+      return;
+    }
     const now = Date.now();
     if (lastTap.current && now - lastTap.current < DOUBLE_TAP_DELAY) {
       // double tap
@@ -56,19 +80,6 @@ export const DraggableTaskCard: React.FC<DraggableTaskCardProps> = ({
       if (onPress) onPress();
     }, DOUBLE_TAP_DELAY);
   };
-  // Try to use card drag context, but don't fail if not available
-  let startDrag: (card: any, columnId: string) => void = () => {};
-  let endDrag = () => {};
-  let globalIsDragging = false;
-  
-  try {
-    const dragContext = useCardDrag();
-    startDrag = dragContext.startDrag;
-    endDrag = dragContext.endDrag;
-    globalIsDragging = dragContext.isDragging;
-  } catch (e) {
-    // CardDragProvider not available, use fallback
-  }
   const getPriorityColor = (priority: string) => {
     switch (priority) {
       case 'high': return colors.error[500];
@@ -79,64 +90,123 @@ export const DraggableTaskCard: React.FC<DraggableTaskCardProps> = ({
   };
 
   const formatDueDate = (dateString: string) => {
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffTime = date.getTime() - now.getTime();
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    
+    const dueDate = parseDateValue(dateString);
+    if (!dueDate) return '';
+
+    const diffDays = differenceInDays(dueDate, new Date());
+
     if (diffDays < 0) return 'Overdue';
     if (diffDays === 0) return 'Today';
     if (diffDays === 1) return 'Tomorrow';
     if (diffDays <= 7) return `${diffDays} days`;
-    
-    return date.toLocaleDateString();
+
+    return dueDate.toLocaleDateString();
   };
 
-  const handlePressIn = () => {
-    startDrag(card, card.columnId);
+  const handleLayout = (event: any) => {
+    const { width, height } = event.nativeEvent.layout;
+    cardLayout.current = { width, height };
   };
 
-  // removed long-press edit; using double-tap via handlePress
+  const handlePanGrant = React.useCallback(
+    (evt: GestureResponderEvent) => {
+      const { pageX, pageY, locationX, locationY } = evt.nativeEvent;
+      dragStartedRef.current = true;
+      startDrag(card, card.columnId, {
+        offset: { x: locationX, y: locationY },
+        size: cardLayout.current.width ? cardLayout.current : undefined,
+      });
+      updateDragPosition(pageX, pageY);
+    },
+    [card, startDrag, updateDragPosition]
+  );
 
-  const isOverdue = card.dueDate && new Date(card.dueDate) < new Date();
+  const handlePanMove = React.useCallback(
+    (evt: GestureResponderEvent) => {
+      if (!dragStartedRef.current) return;
+      const { pageX, pageY } = evt.nativeEvent;
+      updateDragPosition(pageX, pageY);
+    },
+    [updateDragPosition]
+  );
+
+  const handlePanRelease = React.useCallback(() => {
+    if (!dragStartedRef.current) return;
+    dragStartedRef.current = false;
+    dropCard();
+  }, [dropCard]);
+
+  const handlePanTerminate = React.useCallback(() => {
+    if (!dragStartedRef.current) return;
+    dragStartedRef.current = false;
+    endDrag();
+  }, [endDrag]);
+
+  const panResponder = React.useMemo(
+    () =>
+      PanResponder.create({
+        onStartShouldSetPanResponder: () => false,
+        onMoveShouldSetPanResponder: (_: GestureResponderEvent, gesture: PanResponderGestureState) => {
+          if (globalDragging && !isCurrentDrag) {
+            return false;
+          }
+          return Math.abs(gesture.dx) > 8;
+        },
+        onPanResponderGrant: handlePanGrant,
+        onPanResponderMove: handlePanMove,
+        onPanResponderRelease: handlePanRelease,
+        onPanResponderTerminate: handlePanTerminate,
+        onPanResponderTerminationRequest: () => false,
+      }),
+    [globalDragging, isCurrentDrag, handlePanGrant, handlePanMove, handlePanRelease, handlePanTerminate]
+  );
+
+  const dueDate = parseDateValue(card.dueDate);
+  const isOverdue = !!dueDate && differenceInDays(dueDate, new Date()) < 0;
 
   return (
-    <TouchableOpacity 
-      style={[
-        styles.container,
-        isDragging && styles.dragging,
-        globalIsDragging && styles.dragMode
-      ]}
-      onPress={handlePress}
-  onPressIn={handlePressIn}
-      activeOpacity={0.8}
-    >
-      <View style={styles.header}>
-        <View style={[styles.priorityIndicator, { backgroundColor: getPriorityColor(card.priority) }]} />
-        <Text style={styles.title} numberOfLines={2}>
-          {card.title}
-        </Text>
-      </View>
-      
-      {card.description && (
-        <Text style={styles.description} numberOfLines={3}>
-          {card.description}
-        </Text>
-      )}
-      
-      {card.dueDate && (
-        <View style={[styles.dueDate, isOverdue && styles.overdue]}>
-          {isOverdue ? (
-            <AlertCircle size={14} color={colors.error[600]} strokeWidth={2} />
-          ) : (
-            <Calendar size={14} color={colors.neutral[500]} strokeWidth={2} />
-          )}
-          <Text style={[styles.dueDateText, isOverdue && styles.overdueText]}>
-            {formatDueDate(card.dueDate)}
+    <View {...panResponder.panHandlers}>
+      <TouchableOpacity
+        style={[
+          styles.container,
+          isDragging && styles.dragging,
+          globalDragging && styles.dragMode,
+          isCurrentDrag && styles.dragPlaceholder,
+        ]}
+        onPress={handlePress}
+        onLongPress={onReorderDrag}
+        onLayout={handleLayout}
+        activeOpacity={0.8}
+      >
+        <View style={styles.header}>
+          <View
+            style={[styles.priorityIndicator, { backgroundColor: getPriorityColor(card.priority) }]}
+          />
+          <Text style={styles.title} numberOfLines={2}>
+            {card.title}
           </Text>
         </View>
-      )}
-    </TouchableOpacity>
+
+        {card.description && (
+          <Text style={styles.description} numberOfLines={3}>
+            {card.description}
+          </Text>
+        )}
+
+        {card.dueDate && (
+          <View style={[styles.dueDate, isOverdue && styles.overdue]}>
+            {isOverdue ? (
+              <AlertCircle size={14} color={colors.error[600]} strokeWidth={2} />
+            ) : (
+              <Calendar size={14} color={colors.neutral[500]} strokeWidth={2} />
+            )}
+            <Text style={[styles.dueDateText, isOverdue && styles.overdueText]}>
+              {formatDueDate(card.dueDate)}
+            </Text>
+          </View>
+        )}
+      </TouchableOpacity>
+    </View>
   );
 };
 
@@ -209,5 +279,8 @@ const styles = StyleSheet.create({
   },
   dragMode: {
     opacity: 0.6,
+  },
+  dragPlaceholder: {
+    opacity: 0,
   },
 });

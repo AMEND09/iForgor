@@ -14,6 +14,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { X, Calendar } from 'lucide-react-native';
 import { KanbanCard, KanbanColumn } from '@/types';
 import { colors } from '@/utils/colors';
+import { normalizeDateString, toDateKey } from '@/utils/date';
 import uuid from 'react-native-uuid';
 
 interface CreateCardModalProps {
@@ -53,6 +54,8 @@ export const CreateCardModal: React.FC<CreateCardModalProps> = ({
   const handleCreate = () => {
     if (!title.trim()) return;
 
+    const normalizedDueDate = normalizeDateString(dueDate);
+
     const newCard: KanbanCard = {
       id: uuid.v4() as string,
       title: title.trim(),
@@ -60,7 +63,7 @@ export const CreateCardModal: React.FC<CreateCardModalProps> = ({
       priority,
       columnId: targetColumnId,
       boardId,
-      dueDate: dueDate || undefined,
+      dueDate: normalizedDueDate,
       createdAt: new Date().toISOString(),
     };
 
@@ -95,7 +98,7 @@ export const CreateCardModal: React.FC<CreateCardModalProps> = ({
     setTitle('');
     setDescription('');
     setPriority('medium');
-    setDueDate('');
+  setDueDate('');
     setTargetColumnId(columnId);
   };
 
@@ -110,21 +113,17 @@ export const CreateCardModal: React.FC<CreateCardModalProps> = ({
       setTitle(initialCard.title || '');
       setDescription(initialCard.description || '');
       setPriority(initialCard.priority || 'medium');
-      setDueDate(initialCard.dueDate || '');
+      setDueDate(normalizeDateString(initialCard.dueDate) || '');
       setTargetColumnId(initialCard.columnId);
     } else if (visible) {
       setTargetColumnId(columnId);
     }
   }, [visible, initialCard, columnId]);
 
-  const formatDateForInput = (date: Date) => {
-    return date.toISOString().split('T')[0];
-  };
-
   const setQuickDate = (days: number) => {
     const date = new Date();
     date.setDate(date.getDate() + days);
-    setDueDate(formatDateForInput(date));
+    setDueDate(toDateKey(date));
   };
 
   return (

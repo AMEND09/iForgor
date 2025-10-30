@@ -8,6 +8,7 @@ import {
 import { Calendar, CircleAlert as AlertCircle } from 'lucide-react-native';
 import { KanbanCard } from '@/types';
 import { colors } from '@/utils/colors';
+import { differenceInDays, parseDateValue } from '@/utils/date';
 
 interface TaskCardProps {
   card: KanbanCard;
@@ -24,20 +25,21 @@ export const TaskCard: React.FC<TaskCardProps> = ({ card }) => {
   };
 
   const formatDueDate = (dateString: string) => {
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffTime = date.getTime() - now.getTime();
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    
+    const dueDate = parseDateValue(dateString);
+    if (!dueDate) return '';
+
+    const diffDays = differenceInDays(dueDate, new Date());
+
     if (diffDays < 0) return 'Overdue';
     if (diffDays === 0) return 'Today';
     if (diffDays === 1) return 'Tomorrow';
     if (diffDays <= 7) return `${diffDays} days`;
-    
-    return date.toLocaleDateString();
+
+    return dueDate.toLocaleDateString();
   };
 
-  const isOverdue = card.dueDate && new Date(card.dueDate) < new Date();
+  const dueDate = parseDateValue(card.dueDate);
+  const isOverdue = !!dueDate && differenceInDays(dueDate, new Date()) < 0;
 
   return (
     <TouchableOpacity style={styles.container}>

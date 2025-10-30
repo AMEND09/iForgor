@@ -10,6 +10,7 @@ import {
 import { ChevronLeft, ChevronRight } from 'lucide-react-native';
 import { CalendarEvent } from '@/types';
 import { colors } from '@/utils/colors';
+import { parseDateValue, toDateKey } from '@/utils/date';
 
 interface CalendarGridProps {
   events: CalendarEvent[];
@@ -54,7 +55,9 @@ export const CalendarGrid: React.FC<CalendarGridProps> = ({
   const eventsByDate = useMemo(() => {
     const grouped: { [key: string]: CalendarEvent[] } = {};
     events.forEach(event => {
-      const dateKey = new Date(event.date).toDateString();
+      const parsed = parseDateValue(event.date);
+      if (!parsed) return;
+      const dateKey = toDateKey(parsed);
       if (!grouped[dateKey]) {
         grouped[dateKey] = [];
       }
@@ -71,7 +74,7 @@ export const CalendarGrid: React.FC<CalendarGridProps> = ({
 
   const isToday = (date: Date) => {
     const today = new Date();
-    return date.toDateString() === today.toDateString();
+    return toDateKey(date) === toDateKey(today);
   };
 
   const isCurrentMonth = (date: Date) => {
@@ -79,7 +82,7 @@ export const CalendarGrid: React.FC<CalendarGridProps> = ({
   };
 
   const getDayEvents = (date: Date) => {
-    return eventsByDate[date.toDateString()] || [];
+    return eventsByDate[toDateKey(date)] || [];
   };
 
   const getPriorityColor = (priority: string) => {
