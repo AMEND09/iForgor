@@ -15,13 +15,21 @@ import { KanbanBoard, KanbanCard, KanbanColumn } from '@/types';
 import { DraggableKanbanColumn } from '@/components/DraggableKanbanColumn';
 import { CreateCardModal } from '@/components/CreateCardModal';
 import { CardDragProvider } from '@/components/CardDragProvider';
-import { useBoards } from '@/hooks/useBoards';
 import { colors } from '@/utils/colors';
 
 interface BoardDetailModalProps {
   board: KanbanBoard | null;
   visible: boolean;
   onClose: () => void;
+  boards: KanbanBoard[];
+  onAddColumn: (boardId: string, column: KanbanColumn) => void | Promise<void>;
+  onUpdateColumn: (boardId: string, column: KanbanColumn) => void | Promise<void>;
+  onDeleteColumn: (boardId: string, columnId: string) => void | Promise<void>;
+  onReorderColumnCards: (boardId: string, columnId: string, cards: KanbanCard[]) => void | Promise<void>;
+  onAddCard: (boardId: string, columnId: string, card: KanbanCard) => void | Promise<void>;
+  onUpdateCard: (boardId: string, columnId: string, card: KanbanCard) => void | Promise<void>;
+  onDeleteCard: (boardId: string, columnId: string, cardId: string) => void | Promise<void>;
+  onMoveCard: (cardId: string, fromColumnId: string, toColumnId: string, boardId: string) => void | Promise<void>;
 }
 
 const { width } = Dimensions.get('window');
@@ -30,8 +38,16 @@ export const BoardDetailModal: React.FC<BoardDetailModalProps> = ({
   board,
   visible,
   onClose,
+  boards,
+  onAddColumn,
+  onUpdateColumn,
+  onDeleteColumn,
+  onReorderColumnCards,
+  onAddCard,
+  onUpdateCard,
+  onDeleteCard,
+  onMoveCard,
 }) => {
-  const { boards, updateBoard, moveCard, addColumn, updateColumn, deleteColumn, reorderColumns, deleteCard } = useBoards();
   const [showCreateCard, setShowCreateCard] = useState(false);
   const [selectedColumnId, setSelectedColumnId] = useState<string>('');
   const [editingCard, setEditingCard] = useState<KanbanCard | null>(null);
@@ -69,35 +85,14 @@ export const BoardDetailModal: React.FC<BoardDetailModalProps> = ({
   }
 
   const handleCreateCard = async (card: KanbanCard) => {
-  const updatedBoard = { ...activeBoard };
-    const column = updatedBoard.columns.find(c => c.id === card.columnId);
-    if (column) {
-      column.cards.push(card);
-      await updateBoard(updatedBoard);
-    }
+    await onAddCard(activeBoard.id, card.columnId, card);
     setShowCreateCard(false);
   };
 
   const handleUpdateCard = async (card: KanbanCard) => {
-    const updatedBoard = { ...activeBoard };
-    const col = updatedBoard.columns.find(c => c.id === card.columnId);
-    if (!col) return;
-    const idx = col.cards.findIndex(c => c.id === card.id);
-    if (idx !== -1) {
-      col.cards[idx] = card;
-      await updateBoard(updatedBoard);
-    }
+    await onUpdateCard(activeBoard.id, card.columnId, card);
     setEditingCard(null);
     setShowCreateCard(false);
-  };
-
-  const handleUpdateColumn = async (updatedColumn: any) => {
-  const updatedBoard = { ...activeBoard };
-    const columnIndex = updatedBoard.columns.findIndex(c => c.id === updatedColumn.id);
-    if (columnIndex !== -1) {
-      updatedBoard.columns[columnIndex] = updatedColumn;
-      await updateBoard(updatedBoard);
-    }
   };
   const handleCreateColumn = async (title: string) => {
     if (!title.trim()) return;
@@ -109,12 +104,12 @@ export const BoardDetailModal: React.FC<BoardDetailModalProps> = ({
       order: activeBoard.columns.length,
       cards: [],
     };
-    await addColumn(activeBoard.id, newColumn);
+    await onAddColumn(activeBoard.id, newColumn);
     setShowColumnModal(false);
     setColumnTitleInput('');
   };
 
-  const handleRenameColumn = async (columnId: string, title: string) => {
+  const handleRenameColumn = async (columnId: string, _title: string) => {
   const column = activeBoard.columns.find(c => c.id === columnId);
     if (!column) return;
     setEditingColumn(column);
@@ -126,22 +121,18 @@ export const BoardDetailModal: React.FC<BoardDetailModalProps> = ({
   const confirmRenameColumn = async () => {
     if (!editingColumn) return;
     const updated: KanbanColumn = { ...editingColumn, title: columnTitleInput.trim() };
-  await updateColumn(activeBoard.id, updated);
+    await onUpdateColumn(activeBoard.id, updated);
     setShowColumnModal(false);
     setEditingColumn(null);
     setColumnTitleInput('');
   };
 
   const handleDeleteColumn = async (columnId: string) => {
-  await deleteColumn(activeBoard.id, columnId);
+    await onDeleteColumn(activeBoard.id, columnId);
   };
 
-  const handleReorderColumns = async ({ data }: { data: KanbanColumn[] }) => {
-    // Keep the changed order and persist
-  await reorderColumns(activeBoard.id, data);
-  };
   const handleMoveCard = async (cardId: string, fromColumnId: string, toColumnId: string) => {
-  await moveCard(cardId, fromColumnId, toColumnId, activeBoard.id);
+    await onMoveCard(cardId, fromColumnId, toColumnId, activeBoard.id);
   };
 
   const openCreateCard = (columnId: string) => {
@@ -210,7 +201,7 @@ export const BoardDetailModal: React.FC<BoardDetailModalProps> = ({
                 column={column}
                 onMoveCard={handleMoveCard}
                 onAddCard={() => openCreateCard(column.id)}
-                onUpdateColumn={handleUpdateColumn}
+                onReorderCards={(cards: KanbanCard[]) => onReorderColumnCards(activeBoard.id, column.id, cards)}
                 onRenameColumn={handleRenameColumn}
                 onDeleteColumn={handleDeleteColumn}
                 onEditCard={openEditCard}
@@ -245,12 +236,13 @@ export const BoardDetailModal: React.FC<BoardDetailModalProps> = ({
           onClose={() => { setShowCreateCard(false); setEditingCard(null); }}
           onCreate={handleCreateCard}
           initialCard={editingCard}
+          columns={activeBoard.columns}
           onUpdate={async (card: any) => {
             // Support delete marker from modal
             if (card && (card as any).__delete) {
               // call deleteCard with boardId, columnId, cardId
               if (editingCard) {
-                await deleteCard(activeBoard.id, editingCard.columnId, editingCard.id);
+                await onDeleteCard(activeBoard.id, editingCard.columnId, editingCard.id);
               }
               setEditingCard(null);
               setShowCreateCard(false);

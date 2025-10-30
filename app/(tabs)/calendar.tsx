@@ -18,10 +18,18 @@ export default function CalendarScreen() {
   const { boards, loading } = useBoards();
   const [currentDate, setCurrentDate] = React.useState(new Date());
   const [viewMode, setViewMode] = React.useState<'grid' | 'list'>('grid');
+  const [selectedBoardId, setSelectedBoardId] = React.useState<string>('all');
+
+  const filteredBoards = useMemo(() => {
+    if (selectedBoardId === 'all') {
+      return boards;
+    }
+    return boards.filter(board => board.id === selectedBoardId);
+  }, [boards, selectedBoardId]);
 
   const events = useMemo(() => {
-    return getCalendarEvents(boards);
-  }, [boards]);
+    return getCalendarEvents(filteredBoards);
+  }, [filteredBoards]);
 
   const groupedEvents = useMemo(() => {
     const groups: { [date: string]: typeof events } = {};
@@ -67,6 +75,34 @@ export default function CalendarScreen() {
           </TouchableOpacity>
         </View>
       </View>
+
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.boardFilterContainer}
+        style={styles.boardFilterWrapper}
+      >
+        <TouchableOpacity
+          style={[styles.boardFilterChip, selectedBoardId === 'all' && styles.boardFilterChipActive]}
+          onPress={() => setSelectedBoardId('all')}
+        >
+          <Text style={[styles.boardFilterText, selectedBoardId === 'all' && styles.boardFilterTextActive]}>All Boards</Text>
+        </TouchableOpacity>
+        {boards.map(board => {
+          const isActive = selectedBoardId === board.id;
+          return (
+            <TouchableOpacity
+              key={board.id}
+              style={[styles.boardFilterChip, isActive && styles.boardFilterChipActive]}
+              onPress={() => setSelectedBoardId(isActive ? 'all' : board.id)}
+            >
+              <Text style={[styles.boardFilterText, isActive && styles.boardFilterTextActive]}>
+                {board.title}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </ScrollView>
 
       <ScrollView 
         style={styles.scrollView}
@@ -168,6 +204,39 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 8,
     lineHeight: 20,
+  },
+  boardFilterWrapper: {
+    maxHeight: 58,
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderBottomColor: colors.neutral[200],
+  },
+  boardFilterContainer: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  boardFilterChip: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: colors.neutral[300],
+    backgroundColor: colors.neutral[100],
+    marginRight: 12,
+  },
+  boardFilterChipActive: {
+    borderColor: colors.primary[500],
+    backgroundColor: colors.primary[50],
+  },
+  boardFilterText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: colors.neutral[600],
+  },
+  boardFilterTextActive: {
+    color: colors.primary[600],
+    fontWeight: '600',
   },
   daySection: {
     marginBottom: 24,

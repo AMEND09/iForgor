@@ -20,7 +20,20 @@ import { KanbanBoard } from '@/types';
 import { colors } from '@/utils/colors';
 
 export default function BoardsScreen() {
-  const { boards, loading, addBoard, deleteBoard } = useBoards();
+  const {
+    boards,
+    loading,
+    addBoard,
+    deleteBoard,
+    addColumn,
+    updateColumn,
+    deleteColumn,
+    reorderColumnCards,
+    addCard,
+    updateCard,
+    deleteCard,
+    moveCard,
+  } = useBoards();
   const screenWidth = Dimensions.get('window').width;
   const CARD_MIN_WIDTH = 260; // min width per card
   const GAP = 16;
@@ -117,6 +130,15 @@ export default function BoardsScreen() {
         board={selectedBoard}
         visible={!!selectedBoard}
         onClose={() => setSelectedBoard(null)}
+        boards={boards}
+        onAddColumn={addColumn}
+        onUpdateColumn={updateColumn}
+        onDeleteColumn={deleteColumn}
+        onReorderColumnCards={reorderColumnCards}
+        onAddCard={addCard}
+        onUpdateCard={updateCard}
+        onDeleteCard={deleteCard}
+        onMoveCard={moveCard}
       />
     </SafeAreaView>
   );

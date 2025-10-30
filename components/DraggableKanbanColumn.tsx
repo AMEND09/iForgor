@@ -20,9 +20,9 @@ import { MoreHorizontal, Edit, Trash2 } from 'lucide-react-native';
 
 interface DraggableKanbanColumnProps {
   column: KanbanColumnType;
-  onMoveCard: (cardId: string, fromColumnId: string, toColumnId: string) => void;
+  onMoveCard: (cardId: string, fromColumnId: string, toColumnId: string) => void | Promise<void>;
   onAddCard: () => void;
-  onUpdateColumn: (column: KanbanColumnType) => void;
+  onReorderCards: (cards: KanbanCard[]) => void | Promise<void>;
   onRenameColumn?: (columnId: string, title: string) => void;
   onDeleteColumn?: (columnId: string) => void;
   onEditCard?: (cardId: string, columnId: string) => void;
@@ -37,7 +37,7 @@ export const DraggableKanbanColumn: React.FC<DraggableKanbanColumnProps> = ({
   column,
   onMoveCard,
   onAddCard,
-  onUpdateColumn,
+  onReorderCards,
   onRenameColumn,
   onDeleteColumn,
   onEditCard,
@@ -85,8 +85,7 @@ export const DraggableKanbanColumn: React.FC<DraggableKanbanColumnProps> = ({
   };
 
   const handleDragEnd = ({ data }: { data: KanbanCard[] }) => {
-    const updatedColumn = { ...column, cards: data };
-    onUpdateColumn(updatedColumn);
+    onReorderCards(data);
   };
 
   return (

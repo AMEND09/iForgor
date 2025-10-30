@@ -7,7 +7,6 @@
   "scripts": {
     "dev": "expo start",
     "build:web": "expo export --platform web --output-dir web-build",
-  "postbuild:web": "node ./scripts/fix-gh-pages-paths.js",
     "predeploy": "npm run build:web",
     "deploy": "gh-pages -d web-build",
     "lint": "expo lint"

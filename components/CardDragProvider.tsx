@@ -10,14 +10,14 @@ interface CardDragContextType {
   endDrag: () => void;
   dropCard: (toColumnId: string) => void;
   setHoverColumn: (columnId: string | null) => void;
-  onMoveCard?: (cardId: string, fromColumnId: string, toColumnId: string) => void;
+  onMoveCard?: (cardId: string, fromColumnId: string, toColumnId: string) => void | Promise<void>;
 }
 
 const CardDragContext = createContext<CardDragContextType | undefined>(undefined);
 
 interface CardDragProviderProps {
   children: ReactNode;
-  onMoveCard?: (cardId: string, fromColumnId: string, toColumnId: string) => void;
+  onMoveCard?: (cardId: string, fromColumnId: string, toColumnId: string) => void | Promise<void>;
 }
 
 export const CardDragProvider: React.FC<CardDragProviderProps> = ({ 

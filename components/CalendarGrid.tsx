@@ -215,7 +215,7 @@ const styles = StyleSheet.create({
     color: colors.neutral[500],
   },
   calendarGrid: {
-  maxHeight: 420,
+    flexGrow: 0,
   },
   weeksContainer: {
     paddingBottom: 16,

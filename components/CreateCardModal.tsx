@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { X, Calendar } from 'lucide-react-native';
-import { KanbanCard } from '@/types';
+import { KanbanCard, KanbanColumn } from '@/types';
 import { colors } from '@/utils/colors';
 import uuid from 'react-native-uuid';
 
@@ -24,6 +24,7 @@ interface CreateCardModalProps {
   onCreate: (card: KanbanCard) => void;
   initialCard?: KanbanCard | null;
   onUpdate?: (card: KanbanCard) => void;
+  columns?: KanbanColumn[];
 }
 
 const priorityOptions = [
@@ -40,11 +41,13 @@ export const CreateCardModal: React.FC<CreateCardModalProps> = ({
   onCreate,
   initialCard = null,
   onUpdate,
+  columns = [],
 }) => {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [priority, setPriority] = useState<'low' | 'medium' | 'high'>('medium');
   const [dueDate, setDueDate] = useState('');
+  const [targetColumnId, setTargetColumnId] = useState(columnId);
   const insets = useSafeAreaInsets();
 
   const handleCreate = () => {
@@ -55,7 +58,7 @@ export const CreateCardModal: React.FC<CreateCardModalProps> = ({
       title: title.trim(),
       description: description.trim() || undefined,
       priority,
-      columnId,
+      columnId: targetColumnId,
       boardId,
       dueDate: dueDate || undefined,
       createdAt: new Date().toISOString(),
@@ -63,7 +66,13 @@ export const CreateCardModal: React.FC<CreateCardModalProps> = ({
 
     if (initialCard && onUpdate) {
       // editing existing card
-      const updated: KanbanCard = { ...initialCard, ...newCard, id: initialCard.id, createdAt: initialCard.createdAt };
+      const updated: KanbanCard = {
+        ...initialCard,
+        ...newCard,
+        id: initialCard.id,
+        createdAt: initialCard.createdAt,
+        columnId: targetColumnId,
+      };
       onUpdate(updated);
     } else {
       onCreate(newCard);
@@ -87,6 +96,7 @@ export const CreateCardModal: React.FC<CreateCardModalProps> = ({
     setDescription('');
     setPriority('medium');
     setDueDate('');
+    setTargetColumnId(columnId);
   };
 
   const handleClose = () => {
@@ -101,8 +111,11 @@ export const CreateCardModal: React.FC<CreateCardModalProps> = ({
       setDescription(initialCard.description || '');
       setPriority(initialCard.priority || 'medium');
       setDueDate(initialCard.dueDate || '');
+      setTargetColumnId(initialCard.columnId);
+    } else if (visible) {
+      setTargetColumnId(columnId);
     }
-  }, [visible, initialCard]);
+  }, [visible, initialCard, columnId]);
 
   const formatDateForInput = (date: Date) => {
     return date.toISOString().split('T')[0];
@@ -220,6 +233,32 @@ export const CreateCardModal: React.FC<CreateCardModalProps> = ({
               />
             </View>
           </View>
+
+          {columns.length > 0 && (
+            <View style={styles.section}>
+              <Text style={styles.label}>Column</Text>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.columnPickerContent}
+              >
+                {columns.map(column => {
+                  const isSelected = column.id === targetColumnId;
+                  return (
+                    <TouchableOpacity
+                      key={column.id}
+                      style={[styles.columnChip, isSelected && styles.columnChipSelected]}
+                      onPress={() => setTargetColumnId(column.id)}
+                    >
+                      <Text style={[styles.columnChipText, isSelected && styles.columnChipTextSelected]}>
+                        {column.title}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+            </View>
+          )}
         </ScrollView>
 
   <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, Platform.OS === 'ios' ? 20 : 12) }]}>
@@ -373,6 +412,32 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: colors.neutral[900],
     backgroundColor: colors.neutral[50],
+  },
+  columnPickerContent: {
+    flexDirection: 'row',
+    paddingVertical: 4,
+  },
+  columnChip: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: colors.neutral[300],
+    backgroundColor: colors.neutral[100],
+    marginRight: 8,
+  },
+  columnChipSelected: {
+    borderColor: colors.primary[500],
+    backgroundColor: colors.primary[50],
+  },
+  columnChipText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: colors.neutral[600],
+  },
+  columnChipTextSelected: {
+    color: colors.primary[600],
+    fontWeight: '600',
   },
   footer: {
     flexDirection: 'row',
