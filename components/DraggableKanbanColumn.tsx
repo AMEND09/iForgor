@@ -55,7 +55,7 @@ export const DraggableKanbanColumn: React.FC<DraggableKanbanColumnProps> = ({
     const node = containerRef.current;
     if (!node) return;
     node.measureInWindow((x, y, w, h) => {
-      registerColumn(column.id, { x, y, width: w, height: h });
+      registerColumn(column.id, { x, y, width: w, height: h }, measureColumn);
     });
   }, [column.id, registerColumn]);
 

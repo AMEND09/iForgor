@@ -41,7 +41,7 @@ interface CardDragContextType {
   endDrag: () => void;
   dropCard: (preferredColumnId?: string | null) => void;
   updateDragPosition: (x: number, y: number) => void;
-  registerColumn: (columnId: string, layout: LayoutRectangle) => void;
+  registerColumn: (columnId: string, layout: LayoutRectangle, measure?: () => void) => void;
   unregisterColumn: (columnId: string) => void;
   onMoveCard?: (
     cardId: string,
@@ -73,29 +73,55 @@ export const CardDragProvider: React.FC<CardDragProviderProps> = ({
   const [dragOffset, setDragOffset] = useState<DragOffset | null>(null);
   const [dragCardSize, setDragCardSize] = useState<DragSize | null>(null);
 
-  const columnsLayoutRef = useRef<Record<string, LayoutRectangle>>({});
+  const columnsLayoutRef = useRef<
+    Record<string, { layout: LayoutRectangle; measure?: () => void }>
+  >({});
+  const dragPositionRef = useRef<DragPosition | null>(null);
 
-  const registerColumn = useCallback((columnId: string, layout: LayoutRectangle) => {
-    columnsLayoutRef.current = {
-      ...columnsLayoutRef.current,
-      [columnId]: layout,
-    };
-  }, []);
-
-  const unregisterColumn = useCallback((columnId: string) => {
-    const { [columnId]: _removed, ...rest } = columnsLayoutRef.current;
-    columnsLayoutRef.current = rest;
-  }, []);
-
-  const updateHoverByPosition = useCallback((x: number, y: number) => {
+  const resolveHover = useCallback((x: number, y: number) => {
     const entries = Object.entries(columnsLayoutRef.current);
-    const hoveredEntry = entries.find(([, layout]) => {
+    const hoveredEntry = entries.find(([, value]) => {
+      const layout = value.layout;
       const withinX = x >= layout.x && x <= layout.x + layout.width;
       const withinY = y >= layout.y && y <= layout.y + layout.height;
       return withinX && withinY;
     });
     setHoverColumnId(hoveredEntry ? hoveredEntry[0] : null);
   }, []);
+
+  const registerColumn = useCallback(
+    (columnId: string, layout: LayoutRectangle, measure?: () => void) => {
+      columnsLayoutRef.current = {
+        ...columnsLayoutRef.current,
+        [columnId]: { layout, measure },
+      };
+      if (dragPositionRef.current) {
+        resolveHover(dragPositionRef.current.x, dragPositionRef.current.y);
+      }
+    },
+    [resolveHover]
+  );
+
+  const unregisterColumn = useCallback(
+    (columnId: string) => {
+      const { [columnId]: _removed, ...rest } = columnsLayoutRef.current;
+      columnsLayoutRef.current = rest;
+      if (dragPositionRef.current) {
+        resolveHover(dragPositionRef.current.x, dragPositionRef.current.y);
+      }
+    },
+    [resolveHover]
+  );
+
+  const updateHoverByPosition = useCallback((x: number, y: number) => {
+    dragPositionRef.current = { x, y };
+    const entries = Object.entries(columnsLayoutRef.current);
+    // refresh layouts in case scroll offset changed while dragging
+    entries.forEach(([, value]) => {
+      value.measure?.();
+    });
+    resolveHover(x, y);
+  }, [resolveHover]);
 
   const startDrag = useCallback(
     (card: KanbanCard, fromColumnId: string, meta?: DragStartMeta) => {
@@ -123,6 +149,7 @@ export const CardDragProvider: React.FC<CardDragProviderProps> = ({
     setIsDragging(false);
     setHoverColumnId(null);
     setDragPosition(null);
+    dragPositionRef.current = null;
     setDragOffset(null);
     setDragCardSize(null);
   }, []);

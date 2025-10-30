@@ -150,7 +150,8 @@ export const DraggableTaskCard: React.FC<DraggableTaskCardProps> = ({
           if (globalDragging && !isCurrentDrag) {
             return false;
           }
-          return Math.abs(gesture.dx) > 8;
+          const primaryDelta = Math.max(Math.abs(gesture.dx), Math.abs(gesture.dy));
+          return primaryDelta > 8;
         },
         onPanResponderGrant: handlePanGrant,
         onPanResponderMove: handlePanMove,
