@@ -28,8 +28,7 @@ interface DraggableKanbanColumnProps {
   containerStyle?: any;
 }
 
-const { width, height: windowHeight } = Dimensions.get('window');
-const columnWidth = Math.min(280, width - 80);
+const { height: windowHeight } = Dimensions.get('window');
 const COLUMN_MAX_HEIGHT = Math.max(320, Math.floor(windowHeight - 200));
 
 export const DraggableKanbanColumn: React.FC<DraggableKanbanColumnProps> = ({
@@ -95,12 +94,7 @@ export const DraggableKanbanColumn: React.FC<DraggableKanbanColumnProps> = ({
     <View
       ref={containerRef}
       onLayout={handleLayout}
-      style={[
-        styles.container,
-        { width: columnWidth },
-        containerStyle,
-        isDropTarget && styles.dropTarget,
-      ]}
+      style={[styles.container, containerStyle, isDropTarget && styles.dropTarget]}
     >
       <View style={styles.header}>
         <View style={styles.headerLeftRow}>

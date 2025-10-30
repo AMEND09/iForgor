@@ -93,16 +93,15 @@ export const BoardDetailModal: React.FC<BoardDetailModalProps> = ({
   if (!board) return null;
   const activeBoard = boards.find(b => b.id === board.id) || board;
   const GAP = 16;
+  const isMobileLayout = screenWidth <= 600;
 
   const visibleColumns = Math.max(1, activeBoard.columns.length);
   const minColumnWidth = 280;
   const maxColumnWidth = 420;
   let colWidthPx: number;
-  if (screenWidth <= 600) {
-    // mobile: one column per screen (allow horizontal scroll between columns)
-    colWidthPx = screenWidth - 32; // padding left/right
+  if (isMobileLayout) {
+    colWidthPx = screenWidth - 32;
   } else {
-    // desktop/tablet: split evenly but don't exceed max width
     const calc = Math.floor((screenWidth - 32 - GAP * (visibleColumns - 1)) / visibleColumns);
     colWidthPx = Math.min(maxColumnWidth, Math.max(minColumnWidth, calc));
   }
@@ -214,24 +213,34 @@ export const BoardDetailModal: React.FC<BoardDetailModalProps> = ({
         <CardDragProvider onMoveCard={handleMoveCard}>
           <>
             <ScrollView
-              horizontal
+              horizontal={!isMobileLayout}
               style={styles.boardContainer}
-              contentContainerStyle={[styles.boardContent, { alignItems: 'flex-start' }]}
-              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={[
+                isMobileLayout ? styles.boardContentStack : styles.boardContent,
+                { alignItems: 'flex-start' },
+              ]}
+              showsHorizontalScrollIndicator={!isMobileLayout}
             >
-              {activeBoard.columns.map((column, idx) => (
-                <DraggableKanbanColumn
-                  key={column.id}
-                  column={column}
-                  onMoveCard={handleMoveCard}
-                  onAddCard={() => openCreateCard(column.id)}
-                  onReorderCards={(cards: KanbanCard[]) => onReorderColumnCards(activeBoard.id, column.id, cards)}
-                  onRenameColumn={handleRenameColumn}
-                  onDeleteColumn={handleDeleteColumn}
-                  onEditCard={openEditCard}
-                  containerStyle={{ width: colWidthPx, marginRight: idx === activeBoard.columns.length - 1 ? 16 : GAP }}
-                />
-              ))}
+              {activeBoard.columns.map((column, idx) => {
+                const containerStyle = isMobileLayout
+                  ? { width: '100%', marginBottom: idx === activeBoard.columns.length - 1 ? 24 : GAP }
+                  : { width: colWidthPx, marginRight: idx === activeBoard.columns.length - 1 ? 16 : GAP };
+                return (
+                  <DraggableKanbanColumn
+                    key={column.id}
+                    column={column}
+                    onMoveCard={handleMoveCard}
+                    onAddCard={() => openCreateCard(column.id)}
+                    onReorderCards={(cards: KanbanCard[]) =>
+                      onReorderColumnCards(activeBoard.id, column.id, cards)
+                    }
+                    onRenameColumn={handleRenameColumn}
+                    onDeleteColumn={handleDeleteColumn}
+                    onEditCard={openEditCard}
+                    containerStyle={containerStyle}
+                  />
+                );
+              })}
             </ScrollView>
             <DragPreview />
           </>
@@ -362,6 +371,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 16,
     gap: 16,
+  },
+  boardContentStack: {
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    gap: 16,
+    width: '100%',
   },
   headerTitle: {
     fontSize: 20,
